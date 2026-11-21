@@ -1,2 +1,4 @@
 .env
 recipes/*.env
+recipes/*.yml
+recipes/*.yaml
