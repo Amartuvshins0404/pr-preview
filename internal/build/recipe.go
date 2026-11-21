@@ -28,11 +28,9 @@ type recipe struct {
 	File string
 }
 
-func (b *Builder) pickRecipe(ctx context.Context, dir, src, repo string, log io.Writer) (recipe, error) {
-	for _, name := range []string{"compose.yml", "compose.yaml"} {
-		if f := filepath.Join(src, ".preview", name); exists(f) {
-			return recipe{KindRepo, f}, nil
-		}
+func (b *Builder) pickRecipe(ctx context.Context, dir, src, repo, base string, log io.Writer) (recipe, error) {
+	if base != "" {
+		return recipe{KindRepo, base}, nil
 	}
 	for _, name := range []string{repo + ".yml", repo + ".yaml"} {
 		if f := filepath.Join(b.cfg.RecipesDir, name); exists(f) {

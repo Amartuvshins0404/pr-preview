@@ -44,12 +44,48 @@ func (m *Manager) reportStart(ctx context.Context, id string) {
 
 func (m *Manager) report(ctx context.Context, id string, s github.DeployState) {
 	p, ok := m.store.Get(id)
-	if !ok || p.DeploymentID == 0 || !m.cfg.Reports(p.Owner) {
+	if !ok || !m.cfg.Reports(p.Owner) {
 		return
 	}
 	rctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	if err := m.gh.SetDeploymentStatus(rctx, p.Owner, p.Repo, p.DeploymentID, s, m.EntryURL(p)); err != nil {
-		slog.Warn("deployment status failed", "slug", p.Slug, "state", s, "err", err)
+	if p.DeploymentID != 0 {
+		if err := m.gh.SetDeploymentStatus(rctx, p.Owner, p.Repo, p.DeploymentID, s, m.EntryURL(p)); err != nil {
+			slog.Warn("deployment status failed", "slug", p.Slug, "state", s, "err", err)
+		}
 	}
+	body := m.commentBody(p, s)
+	if body == "" || (s == github.Inactive && p.CommentID == 0) {
+		return
+	}
+	cid, err := m.gh.UpsertComment(rctx, p.Owner, p.Repo, p.Number, p.CommentID, body)
+	if err != nil {
+		slog.Warn("pr comment failed", "slug", p.Slug, "err", err)
+		return
+	}
+	if s != github.Inactive {
+		m.update(id, func(p *state.Preview) { p.CommentID = cid })
+	}
+}
+
+func (m *Manager) commentBody(p state.Preview, s github.DeployState) string {
+	short := func(sha string) string {
+		if len(sha) > 7 {
+			return sha[:7]
+		}
+		return sha
+	}
+	switch s {
+	case github.Success:
+		body := "**Preview:** " + m.EntryURL(p) + "\n"
+		if p.Note != "" {
+			body += "\n" + p.Note + "\n"
+		}
+		return body + "\nBuilt from `" + short(p.BuiltSHA) + "`."
+	case github.Failure:
+		return "**Preview failed** for `" + short(p.FailedSHA) + "`. Build log: " + m.EntryURL(p)
+	case github.Inactive:
+		return "Preview removed."
+	}
+	return ""
 }

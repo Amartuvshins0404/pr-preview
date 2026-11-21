@@ -46,7 +46,7 @@ func (m *Manager) openLog(slug string, truncate bool) logFile {
 		return logFile{Writer: io.Discard}
 	}
 	basic := base64.StdEncoding.EncodeToString([]byte("x-access-token:" + m.cfg.GitHubToken))
-	return logFile{Writer: run.NewRedactor(f, m.cfg.GitHubToken, basic), f: f}
+	return logFile{Writer: run.NewRedactor(f, m.cfg.GitHubToken, basic, m.cfg.AccessPassword), f: f}
 }
 
 func (m *Manager) build(ctx context.Context, id string) {
@@ -74,7 +74,7 @@ func (m *Manager) build(ctx context.Context, id string) {
 	res, err := m.b.Build(bctx, project(p), log)
 	if err == nil {
 		p = m.update(id, func(p *state.Preview) {
-			p.Phase, p.Recipe, p.Service, p.Port = state.Starting, res.Recipe, res.Service, res.Port
+			p.Phase, p.Recipe, p.Service, p.Port, p.Note = state.Starting, res.Recipe, res.Service, res.Port, res.Note
 		})
 		pctx, pcancel := context.WithTimeout(bctx, probeTimeout)
 		err = m.b.Probe(pctx, project(p), res.Service, res.Port, log)
@@ -140,6 +140,9 @@ func (m *Manager) start(ctx context.Context, id string) {
 		return
 	}
 	defer unlock()
+	if err := m.b.Join(sctx, p.Slug); err != nil {
+		fmt.Fprintf(log, "join preview network: %v\n", err)
+	}
 	if err := m.b.Probe(sctx, project(p), p.Service, p.Port, log); err != nil {
 		m.fail(id, p.BuiltSHA, err, log)
 		return

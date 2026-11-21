@@ -45,6 +45,9 @@ type Preview struct {
 	LastUsed     time.Time `json:"lastUsed"`
 	UpdatedAt    time.Time `json:"updatedAt"`
 	DeploymentID int64     `json:"deploymentId,omitempty"`
+	BaseRef      string    `json:"baseRef,omitempty"`
+	Note         string    `json:"note,omitempty"`
+	CommentID    int64     `json:"commentId,omitempty"`
 }
 
 func (p Preview) Serving() bool {

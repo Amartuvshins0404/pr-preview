@@ -43,7 +43,8 @@ You can keep the token out of `.env` and pass it from the shell:
 The service fetches `refs/pull/<n>/head` into `DATA_DIR/previews/<slug>/src` and picks the first
 recipe that exists:
 
-1. `.preview/compose.yml` (or `.yaml`) in the repo.
+1. `.preview/compose.yml` (or `.yaml`) on the PR's base branch. The PR's own copy is never used, so a
+   PR cannot change how it is contained.
 2. `recipes/<repo>.yml` on the server, for repos that carry no recipe.
 3. `Dockerfile` in the repo root. The app gets `PORT` and listens on the last `EXPOSE`d port, or 3000.
 4. [Railpack](https://railpack.com) detects the stack and builds an image. The app gets `PORT=3000`.
@@ -84,9 +85,14 @@ number, the non-fork repo gets the short slug and the other gets `<owner>-<repo>
 | `BUILD_CONCURRENCY` | `1` | Builds that may run at once |
 | `BUILD_TIMEOUT_MINUTES` | `30` | Stop a build that takes longer |
 | `DATA_DIR` | `/var/lib/pr-preview` | Sources, logs and state; mounted at the same path in the container |
+| `PREVIEW_RUNTIME` | empty | Docker runtime for preview containers; set `runsc` to run them in gVisor |
+| `PREVIEW_MEMORY` | `2g` | Memory limit of each preview container |
+| `PREVIEW_CPUS` | `2` | CPU limit of each preview container |
 
-With `REPORT_OWNERS` set, the service creates a transient `preview` deployment for each build and
+With `REPORT_OWNERS` set, the service creates a transient `pr-preview` deployment for each build and
 sets it to in progress, success (with the entry URL) or failure, and to inactive when the PR closes.
+It also keeps one comment on the PR with the preview link and the recipe's `x-preview.note`, such as
+the sign-in of a seeded account.
 
 ## Security
 
@@ -95,6 +101,15 @@ sets it to in progress, success (with the entry URL) or failure, and to inactive
 - The service holds the Docker socket, so it has root on the server. Run it on a server meant for
   previews only.
 - Only the token owner's PRs are built. PRs from other people never run.
+- PR code is treated as untrusted. Install [gVisor](https://gvisor.dev) and set
+  `PREVIEW_RUNTIME=runsc`: every preview container then runs on gVisor's own kernel, not the
+  host's. Each container also gets no new privileges, no added capabilities or devices, and memory,
+  CPU and process limits.
+- A recipe comes from the server or the base branch, never from the PR. Every host path it names
+  (bind mounts, env files, secrets, build contexts) must resolve inside that preview's own
+  checkout, so a symlink in a PR cannot reach the host. Host namespaces are refused.
+- Each preview has its own network. It reaches the internet and this service, not other previews.
+- Image builds run in BuildKit's standard sandbox, not in gVisor.
 - With `ACCESS_PASSWORD` set, private-repo previews, their logs and every action need a session.
   The session cookie covers the subdomains and never reaches a preview app. Actions also need an
   `Origin` of `https://BASE_DOMAIN`, because preview apps on the subdomains are same-site.

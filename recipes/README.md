@@ -1,6 +1,7 @@
 # Recipes
 
-A recipe is a Compose file that runs one PR. Put it in the repo as `.preview/compose.yml`, or here
+A recipe is a Compose file that runs one PR. Put it in the repo as `.preview/compose.yml` (read from
+the PR's base branch, never from the PR), or here
 as `<repo>.yml` for a repo that carries none.
 
 ```yaml
@@ -23,6 +24,9 @@ services:
 - `x-preview.service` names the service that gets the traffic. It defaults to the only service,
   then to one named `web` or `app`.
 - `x-preview.port` is the port that service listens on inside its container. It is required.
+- `x-preview.note` is one line of Markdown added to the PR comment, such as a seeded sign-in.
+- Every host path must stay inside the checkout. Host namespaces are refused; `privileged`,
+  `cap_add` and `devices` are dropped.
 - Paths resolve from the repo root, for both kinds of recipe.
 - Published `ports` and `container_name` are dropped, so PRs never collide.
 - These variables are set for interpolation: `PREVIEW_URL`, `PREVIEW_HOST`, `PREVIEW_SLUG`,

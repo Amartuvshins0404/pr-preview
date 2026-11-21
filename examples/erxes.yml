@@ -1,6 +1,7 @@
 x-preview:
   service: ui
   port: 8080
+  note: 'Sign in: `${PREVIEW_OWNER_EMAIL:-owner@e2e.test}` / `${PREVIEW_OWNER_PASSWORD:-E2e-owner-pass-1}`'
 
 x-api: &api
   build:

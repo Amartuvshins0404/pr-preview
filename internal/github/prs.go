@@ -13,6 +13,7 @@ type PR struct {
 	Title   string
 	URL     string
 	HeadSHA string
+	BaseRef string
 	Private bool
 	Fork    bool
 }
@@ -22,7 +23,7 @@ const openPRs = `query($after: String) {
     pullRequests(states: OPEN, first: 100, after: $after, orderBy: {field: CREATED_AT, direction: DESC}) {
       pageInfo { hasNextPage endCursor }
       nodes {
-        number title url headRefOid
+        number title url headRefOid baseRefName
         repository { name isPrivate isFork owner { login } }
       }
     }
@@ -42,6 +43,7 @@ type prPage struct {
 					Title      string `json:"title"`
 					URL        string `json:"url"`
 					HeadRefOid string `json:"headRefOid"`
+					BaseRef    string `json:"baseRefName"`
 					Repository struct {
 						Name      string `json:"name"`
 						IsPrivate bool   `json:"isPrivate"`
@@ -80,6 +82,7 @@ func (c *Client) OpenPRs(ctx context.Context) ([]PR, error) {
 				Title:   n.Title,
 				URL:     n.URL,
 				HeadSHA: n.HeadRefOid,
+				BaseRef: n.BaseRef,
 				Private: n.Repository.IsPrivate,
 				Fork:    n.Repository.IsFork,
 			})

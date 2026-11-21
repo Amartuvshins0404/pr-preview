@@ -33,6 +33,9 @@ services:
       BUILD_CONCURRENCY: ${BUILD_CONCURRENCY:-1}
       BUILD_TIMEOUT_MINUTES: ${BUILD_TIMEOUT_MINUTES:-30}
       DATA_DIR: ${DATA_DIR:-/var/lib/pr-preview}
+      PREVIEW_RUNTIME: ${PREVIEW_RUNTIME:-}
+      PREVIEW_MEMORY: ${PREVIEW_MEMORY:-2g}
+      PREVIEW_CPUS: ${PREVIEW_CPUS:-2}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${DATA_DIR:-/var/lib/pr-preview}:${DATA_DIR:-/var/lib/pr-preview}

@@ -30,6 +30,7 @@ type Result struct {
 	Recipe  string
 	Service string
 	Port    int
+	Note    string
 }
 
 func (b *Builder) Build(ctx context.Context, p Project, log io.Writer) (Result, error) {
@@ -39,7 +40,15 @@ func (b *Builder) Build(ctx context.Context, p Project, log io.Writer) (Result, 
 		return Result{}, err
 	}
 	p.SHA = sha
-	r, err := b.pickRecipe(ctx, dir, dir+"/src", p.Repo, log)
+	base := dir + "/compose.base.yml"
+	hasBase, err := baseRecipe(ctx, dir+"/src", base, p, b.cfg.GitHubToken, log)
+	if err != nil {
+		return Result{SHA: sha}, err
+	}
+	if !hasBase {
+		base = ""
+	}
+	r, err := b.pickRecipe(ctx, dir, dir+"/src", p.Repo, base, log)
 	if err != nil {
 		return Result{SHA: sha}, err
 	}
@@ -56,8 +65,11 @@ func (b *Builder) Build(ctx context.Context, p Project, log io.Writer) (Result, 
 	if err := b.writeOverride(p.Slug, s); err != nil {
 		return Result{SHA: sha}, err
 	}
-	res := Result{SHA: sha, Kind: r.Kind, Recipe: r.File, Service: s.Entry, Port: s.Port}
-	return res, b.Compose(ctx, p, log, "up", "-d", "--build", "--remove-orphans")
+	res := Result{SHA: sha, Kind: r.Kind, Recipe: r.File, Service: s.Entry, Port: s.Port, Note: s.Note}
+	if err := b.Compose(ctx, p, log, "up", "-d", "--build", "--remove-orphans"); err != nil {
+		return res, err
+	}
+	return res, b.Join(ctx, p.Slug)
 }
 
 func (b *Builder) Probe(ctx context.Context, p Project, service string, port int, log io.Writer) error {
@@ -113,6 +125,7 @@ func (b *Builder) exited(ctx context.Context, p Project, service string) (bool, 
 }
 
 func (b *Builder) Down(ctx context.Context, p Project, log io.Writer) error {
+	b.leave(ctx, p.Slug)
 	err := b.Compose(ctx, p, log, "down", "--volumes", "--rmi", "local", "--remove-orphans")
 	out, lerr := run.Cmd{}.Output(ctx, "docker", "volume", "ls", "-q", "--filter", "label=com.docker.compose.project="+ProjectName(p.Slug))
 	if lerr == nil {

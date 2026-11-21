@@ -185,5 +185,5 @@ func (m *Manager) update(id string, fn func(*state.Preview)) state.Preview {
 }
 
 func project(p state.Preview) build.Project {
-	return build.Project{Slug: p.Slug, Owner: p.Owner, Repo: p.Repo, Number: p.Number, SHA: p.BuiltSHA, Recipe: p.Recipe}
+	return build.Project{Slug: p.Slug, Owner: p.Owner, Repo: p.Repo, Number: p.Number, SHA: p.BuiltSHA, Recipe: p.Recipe, BaseRef: p.BaseRef}
 }

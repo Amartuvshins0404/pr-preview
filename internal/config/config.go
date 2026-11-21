@@ -22,9 +22,12 @@ type Config struct {
 	DataDir          string
 	RecipesDir       string
 	Listen           string
-	Network          string
 	RailpackFrontend string
 	CaddyTLSAddr     string
+	PreviewRuntime   string
+	PreviewMemory    string
+	PreviewCPUs      string
+	Self             string
 }
 
 func Load() (Config, error) {
@@ -35,9 +38,15 @@ func Load() (Config, error) {
 		DataDir:          str("DATA_DIR", "/var/lib/pr-preview"),
 		RecipesDir:       str("RECIPES_DIR", "/recipes"),
 		Listen:           str("LISTEN_ADDR", ":8080"),
-		Network:          "pr-preview",
 		RailpackFrontend: str("RAILPACK_FRONTEND", "ghcr.io/railwayapp/railpack-frontend"),
 		CaddyTLSAddr:     str("CADDY_TLS_ADDR", "caddy:443"),
+		PreviewRuntime:   strings.TrimSpace(os.Getenv("PREVIEW_RUNTIME")),
+		PreviewMemory:    str("PREVIEW_MEMORY", "2g"),
+		PreviewCPUs:      str("PREVIEW_CPUS", "2"),
+		Self:             strings.TrimSpace(os.Getenv("SELF_CONTAINER")),
+	}
+	if c.Self == "" {
+		c.Self, _ = os.Hostname()
 	}
 	for _, o := range strings.Split(os.Getenv("REPORT_OWNERS"), ",") {
 		if o = strings.ToLower(strings.TrimSpace(o)); o != "" {

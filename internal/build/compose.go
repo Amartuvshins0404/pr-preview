@@ -14,13 +14,16 @@ import (
 	"github.com/Amartuvshins0404/pr-preview/internal/run"
 )
 
+const gatewayNet = "pr-preview"
+
 type Project struct {
-	Slug   string
-	Owner  string
-	Repo   string
-	Number int
-	SHA    string
-	Recipe string
+	Slug    string
+	Owner   string
+	Repo    string
+	Number  int
+	SHA     string
+	Recipe  string
+	BaseRef string
 }
 
 func (b *Builder) Dir(slug string) string { return filepath.Join(b.cfg.DataDir, "previews", slug) }
@@ -28,6 +31,8 @@ func (b *Builder) Dir(slug string) string { return filepath.Join(b.cfg.DataDir, 
 func (b *Builder) LogPath(slug string) string { return filepath.Join(b.Dir(slug), "build.log") }
 
 func ProjectName(slug string) string { return "pv-" + slug }
+
+func gatewayName(slug string) string { return ProjectName(slug) + "_" + gatewayNet }
 
 func (b *Builder) override(slug string) string { return filepath.Join(b.Dir(slug), "override.yml") }
 
@@ -64,19 +69,9 @@ func (b *Builder) Compose(ctx context.Context, p Project, log io.Writer, args ..
 type spec struct {
 	Entry    string
 	Port     int
+	Note     string
 	Services []string
 	Networks []string
-}
-
-type composeConfig struct {
-	Services map[string]struct {
-		Networks    map[string]json.RawMessage `json:"networks"`
-		NetworkMode string                     `json:"network_mode"`
-	} `json:"services"`
-	Preview *struct {
-		Service string `json:"service"`
-		Port    int    `json:"port"`
-	} `json:"x-preview"`
 }
 
 func (b *Builder) inspect(ctx context.Context, p Project) (spec, error) {
@@ -92,7 +87,10 @@ func (b *Builder) inspect(ctx context.Context, p Project) (spec, error) {
 	if cfg.Preview == nil || cfg.Preview.Port <= 0 {
 		return spec{}, fmt.Errorf("recipe %s needs a top-level x-preview with a port", p.Recipe)
 	}
-	s := spec{Port: cfg.Preview.Port, Entry: cfg.Preview.Service}
+	if err := checkConfig(b.Dir(p.Slug), cfg); err != nil {
+		return spec{}, err
+	}
+	s := spec{Port: cfg.Preview.Port, Entry: cfg.Preview.Service, Note: strings.TrimSpace(cfg.Preview.Note)}
 	for name := range cfg.Services {
 		s.Services = append(s.Services, name)
 	}
@@ -103,9 +101,6 @@ func (b *Builder) inspect(ctx context.Context, p Project) (spec, error) {
 	svc, ok := cfg.Services[s.Entry]
 	if s.Entry == "" || !ok {
 		return spec{}, fmt.Errorf("x-preview.service %q is not a service of the recipe; set it to one of %s", s.Entry, strings.Join(s.Services, ", "))
-	}
-	if svc.NetworkMode != "" {
-		return spec{}, fmt.Errorf("entry service %s uses network_mode %q and cannot join the preview network", s.Entry, svc.NetworkMode)
 	}
 	for n := range svc.Networks {
 		s.Networks = append(s.Networks, n)
@@ -135,7 +130,14 @@ func (b *Builder) writeOverride(slug string, s spec) error {
 	var w strings.Builder
 	w.WriteString("services:\n")
 	for _, name := range s.Services {
-		fmt.Fprintf(&w, "  %s:\n    ports: !reset []\n    container_name: !reset null\n", strconv.Quote(name))
+		fmt.Fprintf(&w, "  %s:\n", strconv.Quote(name))
+		w.WriteString("    ports: !reset []\n    container_name: !reset null\n")
+		w.WriteString("    privileged: false\n    cap_add: !reset []\n    devices: !reset []\n")
+		w.WriteString("    security_opt: [\"no-new-privileges:true\"]\n    pids_limit: 1024\n")
+		fmt.Fprintf(&w, "    mem_limit: %s\n    cpus: %s\n", strconv.Quote(b.cfg.PreviewMemory), strconv.Quote(b.cfg.PreviewCPUs))
+		if b.cfg.PreviewRuntime != "" {
+			fmt.Fprintf(&w, "    runtime: %s\n", strconv.Quote(b.cfg.PreviewRuntime))
+		}
 		if name != s.Entry {
 			continue
 		}
@@ -143,8 +145,20 @@ func (b *Builder) writeOverride(slug string, s spec) error {
 		for _, n := range s.Networks {
 			fmt.Fprintf(&w, "      %s: {}\n", strconv.Quote(n))
 		}
-		fmt.Fprintf(&w, "      %s:\n        aliases: [%s]\n", strconv.Quote(b.cfg.Network), strconv.Quote(ProjectName(slug)))
+		fmt.Fprintf(&w, "      %s:\n        aliases: [%s]\n", strconv.Quote(gatewayNet), strconv.Quote(ProjectName(slug)))
 	}
-	fmt.Fprintf(&w, "networks:\n  %s:\n    name: %s\n    external: true\n", strconv.Quote(b.cfg.Network), strconv.Quote(b.cfg.Network))
+	fmt.Fprintf(&w, "networks:\n  %s: {}\n", strconv.Quote(gatewayNet))
 	return os.WriteFile(b.override(slug), []byte(w.String()), 0o644)
+}
+
+func (b *Builder) Join(ctx context.Context, slug string) error {
+	_, err := run.Cmd{}.Output(ctx, "docker", "network", "connect", gatewayName(slug), b.cfg.Self)
+	if err != nil && !strings.Contains(err.Error(), "already exists") {
+		return err
+	}
+	return nil
+}
+
+func (b *Builder) leave(ctx context.Context, slug string) {
+	_, _ = run.Cmd{}.Output(ctx, "docker", "network", "disconnect", "--force", gatewayName(slug), b.cfg.Self)
 }

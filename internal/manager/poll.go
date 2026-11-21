@@ -53,7 +53,7 @@ func (m *Manager) poll(ctx context.Context) {
 		changed := old.HeadSHA != pr.HeadSHA
 		m.update(id, func(p *state.Preview) {
 			p.Owner, p.Repo, p.Title, p.URL, p.Private, p.Fork = pr.Owner, pr.Repo, pr.Title, pr.URL, pr.Private, pr.Fork
-			p.HeadSHA = pr.HeadSHA
+			p.HeadSHA, p.BaseRef = pr.HeadSHA, pr.BaseRef
 		})
 		if changed {
 			m.enqueue(id, eager)
@@ -72,7 +72,7 @@ func (m *Manager) poll(ctx context.Context) {
 func newPreview(id, s string, pr github.PR) state.Preview {
 	return state.Preview{
 		ID: id, Slug: s, Owner: pr.Owner, Repo: pr.Repo, Number: pr.Number, Title: pr.Title, URL: pr.URL,
-		Private: pr.Private, Fork: pr.Fork, HeadSHA: pr.HeadSHA, Phase: state.Absent,
+		Private: pr.Private, Fork: pr.Fork, HeadSHA: pr.HeadSHA, BaseRef: pr.BaseRef, Phase: state.Absent,
 	}
 }
 
@@ -92,6 +92,11 @@ func (m *Manager) reconcile(ctx context.Context) {
 		name := build.ProjectName(p.Slug)
 		known[name] = true
 		st, has := status[name]
+		if has {
+			if err := m.b.Join(ctx, p.Slug); err != nil {
+				slog.Warn("join preview network", "slug", p.Slug, "err", err)
+			}
+		}
 		inFlight := p.Phase == state.Queued || p.Phase == state.Building || p.Phase == state.Starting
 		m.update(p.ID, func(p *state.Preview) {
 			switch {
