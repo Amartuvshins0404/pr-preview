@@ -105,6 +105,10 @@ the sign-in of a seeded account.
   `PREVIEW_RUNTIME=runsc`: every preview container then runs on gVisor's own kernel, not the
   host's. Each container also gets no new privileges, no added capabilities or devices, and memory,
   CPU and process limits.
+- Register gVisor in `/etc/docker/daemon.json` as
+  `"runsc": { "path": "/usr/bin/runsc", "runtimeArgs": ["--network=host"] }`. The flag passes
+  network calls to the container's own network namespace; without it, service names do not resolve
+  on Docker hosts that use nftables.
 - A recipe comes from the server or the base branch, never from the PR. Every host path it names
   (bind mounts, env files, secrets, build contexts) must resolve inside that preview's own
   checkout, so a symlink in a PR cannot reach the host. Host namespaces are refused.
