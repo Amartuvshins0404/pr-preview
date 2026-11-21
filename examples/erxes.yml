@@ -85,6 +85,29 @@ services:
     depends_on:
       api: { condition: service_healthy }
 
+  seed:
+    image: curlimages/curl
+    restart: 'no'
+    depends_on:
+      ui: { condition: service_healthy }
+    environment:
+      HOST: ${PREVIEW_HOST:-localhost}
+      SUBDOMAIN: ${PREVIEW_SLUG:-preview}
+      OWNER_EMAIL: ${PREVIEW_OWNER_EMAIL:-owner@e2e.test}
+      OWNER_PASSWORD: ${PREVIEW_OWNER_PASSWORD:-E2e-owner-pass-1}
+    entrypoint:
+      - sh
+      - -c
+      - |
+        set -eu
+        api=http://ui:8080/core/v1
+        call() { curl -fsS -H "Host: $$HOST" -H "Origin: https://$$HOST" -H 'content-type: application/json' "$$@"; }
+        case "$$(call $$api/setup)" in *true*) ;; *) echo "already set up"; exit 0 ;; esac
+        call -c /tmp/jar -o /dev/null -d "{\"organizationName\":\"Preview\",\"subdomain\":\"$$SUBDOMAIN\",\"firstName\":\"Olivia\",\"lastName\":\"Owner\",\"email\":\"$$OWNER_EMAIL\",\"password\":\"$$OWNER_PASSWORD\"}" $$api/setup
+        token=$$(awk '/erxes_session/ {print $$NF}' /tmp/jar)
+        call -o /dev/null -H "authorization: Bearer $$token" -d '{"exampleData":true,"language":"en"}' $$api/auth/onboarded
+        echo "seeded: sign in as $$OWNER_EMAIL"
+
 volumes:
   postgres:
   files:

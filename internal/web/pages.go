@@ -124,7 +124,13 @@ type dashRepo struct {
 	Previews []state.Preview
 }
 
+type liveRow struct {
+	P   state.Preview
+	URL string
+}
+
 type dashView struct {
+	Live    []liveRow
 	Repos   []dashRepo
 	Hidden  int
 	Total   int
@@ -142,6 +148,9 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
 		if !s.visible(r, p) {
 			v.Hidden++
 			continue
+		}
+		if p.Serving() {
+			v.Live = append(v.Live, liveRow{P: p, URL: "https://" + s.cfg.Host(p.Slug)})
 		}
 		name := p.Owner + "/" + p.Repo
 		i, ok := idx[name]

@@ -19,6 +19,18 @@ td.a button{margin-left:4px}
   <span class="muted">{{.Total}} open PRs{{if .Gated}} · <a href="{{.Login}}">Sign in</a>{{end}}</span>
 </div>
 {{if .Hidden}}<p class="muted">{{.Hidden}} private PRs are hidden. <a href="{{.Login}}">Sign in</a> to see them.</p>{{end}}
+{{if .Live}}
+<h2>Live now</h2>
+<div class="card"><table>
+{{range .Live}}
+<tr>
+  <td class="n"><a href="{{.P.URL}}">#{{.P.Number}}</a></td>
+  <td class="title"><a href="{{.URL}}">{{.P.Title}}</a><div class="muted">{{.P.Owner}}/{{.P.Repo}}</div></td>
+  <td class="a"><a class="btn" href="{{.URL}}">Open app</a></td>
+</tr>
+{{end}}
+</table></div>
+{{end}}
 {{range .Repos}}
 <h2>{{.Name}}</h2>
 <div class="card"><table>
