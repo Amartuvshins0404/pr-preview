@@ -1,0 +1,47 @@
+name: pr-preview
+
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      BASE_DOMAIN: ${BASE_DOMAIN:?set BASE_DOMAIN in .env}
+      ACME_EMAIL_OPTION: ${ACME_EMAIL:+email ${ACME_EMAIL:-}}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - preview
+
+  preview:
+    build: .
+    image: pr-preview:local
+    restart: unless-stopped
+    environment:
+      BASE_DOMAIN: ${BASE_DOMAIN:?set BASE_DOMAIN in .env}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:?set GITHUB_TOKEN in .env or the shell}
+      ACCESS_PASSWORD: ${ACCESS_PASSWORD:-}
+      REPORT_OWNERS: ${REPORT_OWNERS:-}
+      MAX_RUNNING: ${MAX_RUNNING:-4}
+      IDLE_MINUTES: ${IDLE_MINUTES:-240}
+      POLL_SECONDS: ${POLL_SECONDS:-60}
+      BUILD_CONCURRENCY: ${BUILD_CONCURRENCY:-1}
+      BUILD_TIMEOUT_MINUTES: ${BUILD_TIMEOUT_MINUTES:-30}
+      DATA_DIR: ${DATA_DIR:-/var/lib/pr-preview}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${DATA_DIR:-/var/lib/pr-preview}:${DATA_DIR:-/var/lib/pr-preview}
+      - ./recipes:/recipes:ro
+
+networks:
+  default:
+    name: pr-preview
+
+volumes:
+  caddy-data:
+  caddy-config:
