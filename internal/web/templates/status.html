@@ -1,0 +1,70 @@
+{{define "status.html"}}<!doctype html>
+<html lang="en"><head>{{template "head"}}
+<title>{{.P.Repo}} #{{.P.Number}} · {{.P.Phase}}</title>
+<noscript><meta http-equiv="refresh" content="5"></noscript>
+<style>
+.top{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+.meta{display:flex;gap:14px;flex-wrap:wrap;margin:10px 0 18px;font-size:13px}
+.spin{display:inline-block;width:10px;height:10px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:s 1s linear infinite;vertical-align:-1px;margin-right:6px}
+@keyframes s{to{transform:rotate(360deg)}}
+.err{color:var(--bad);margin:0 0 14px}
+</style></head>
+<body><main>
+<div class="top">
+  <div>
+    <div class="muted">{{.P.Owner}}/{{.P.Repo}} · <a href="{{.P.URL}}">#{{.P.Number}}</a></div>
+    <h1>{{.P.Title}}</h1>
+  </div>
+  <div>
+    {{if and .Failed .CanPost}}<button class="primary" id="rebuild">Rebuild</button>{{end}}
+    {{if and .Failed .Sub}}<a class="btn" href="{{.Entry}}">Open build page</a>{{end}}
+  </div>
+</div>
+<div class="meta">
+  <span id="phase" class="badge {{.P.Phase}}">{{if .Progress}}<span class="spin"></span>{{end}}{{.P.Phase}}</span>
+  <span class="muted">commit <code>{{short .P.HeadSHA}}</code></span>
+  <span class="muted" id="hint">{{if .Progress}}This page reloads when the preview is up.{{else if eq .P.Phase "sleeping"}}Waking up…{{else if .Failed}}The build failed for this commit.{{end}}</span>
+</div>
+{{if .P.Error}}<p class="err">{{.P.Error}}</p>{{end}}
+<pre id="log">{{.Log.Text}}</pre>
+</main>
+<script type="application/json" id="cfg">{"sub":{{.Sub}},"slug":{{.P.Slug}},"offset":{{.Log.Offset}}}</script>
+<script>
+(function(){
+  var cfg = JSON.parse(document.getElementById('cfg').textContent);
+  var offset = cfg.offset, logEl = document.getElementById('log'), phaseEl = document.getElementById('phase');
+  var poll = '/_/api/previews/' + encodeURIComponent(cfg.slug);
+  logEl.scrollTop = logEl.scrollHeight;
+  function show(d){
+    phaseEl.className = 'badge ' + d.phase;
+    phaseEl.textContent = d.phase;
+    if (d.log && d.log.text) {
+      var stick = logEl.scrollTop + logEl.clientHeight >= logEl.scrollHeight - 20;
+      if (d.log.offset < offset) logEl.textContent = '';
+      logEl.textContent += d.log.text;
+      if (stick) logEl.scrollTop = logEl.scrollHeight;
+    }
+    if (d.log) offset = d.log.offset;
+  }
+  function tick(){
+    var url = cfg.sub ? location.href : poll + '?offset=' + offset;
+    var headers = {'Accept': 'application/json'};
+    if (cfg.sub) headers['X-PR-Preview-Offset'] = String(offset);
+    fetch(url, {headers: headers, cache: 'no-store', credentials: 'same-origin', redirect: 'manual'}).then(function(r){
+      if (cfg.sub && r.headers.get('X-PR-Preview') !== 'status') { location.reload(); return; }
+      return r.json().then(function(d){
+        if (d.serving) { location.reload(); return; }
+        show(d);
+        setTimeout(tick, d.phase === 'failed' ? 10000 : 2000);
+      });
+    }).catch(function(){ setTimeout(tick, 5000); });
+  }
+  setTimeout(tick, 2000);
+  var rb = document.getElementById('rebuild');
+  if (rb) rb.onclick = function(){
+    rb.disabled = true;
+    fetch('/_/api/previews/' + encodeURIComponent(cfg.slug) + '/rebuild', {method: 'POST', credentials: 'same-origin'}).then(function(){ location.reload(); });
+  };
+})();
+</script>
+</body></html>{{end}}

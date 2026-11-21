@@ -1,0 +1,18 @@
+{{define "login.html"}}<!doctype html>
+<html lang="en"><head>{{template "head"}}
+<title>Sign in · PR previews</title>
+<style>
+form{max-width:340px;margin:12vh auto 0;padding:24px}
+input{width:100%;font:inherit;padding:8px 10px;margin:14px 0;border-radius:7px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
+.err{color:var(--bad);font-size:13px;margin:0}
+</style></head>
+<body><main>
+<form class="card" method="post" action="/_/login">
+  <h1>PR previews</h1>
+  <div class="muted">Enter the access password.</div>
+  <input type="hidden" name="next" value="{{.Next}}">
+  <input type="password" name="password" autocomplete="current-password" autofocus required aria-label="Password">
+  {{if .Error}}<p class="err">{{.Error}}</p>{{end}}
+  <button class="primary" type="submit">Sign in</button>
+</form>
+</main></body></html>{{end}}

@@ -1,0 +1,49 @@
+{{define "dashboard.html"}}<!doctype html>
+<html lang="en"><head>{{template "head"}}
+<title>PR previews</title>
+<style>
+.head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+table{width:100%;border-collapse:collapse}
+td{padding:10px 14px;border-top:1px solid var(--line);vertical-align:middle}
+tr:first-child td{border-top:0}
+td.n{width:64px;white-space:nowrap}
+td.s{width:110px}
+td.a{text-align:right;white-space:nowrap}
+td.a button{margin-left:4px}
+.title{overflow-wrap:anywhere}
+@media (max-width:640px){td.sha,td.used{display:none}}
+</style></head>
+<body><main>
+<div class="head">
+  <h1>PR previews</h1>
+  <span class="muted">{{.Total}} open PRs{{if .Gated}} · <a href="{{.Login}}">Sign in</a>{{end}}</span>
+</div>
+{{if .Hidden}}<p class="muted">{{.Hidden}} private PRs are hidden. <a href="{{.Login}}">Sign in</a> to see them.</p>{{end}}
+{{range .Repos}}
+<h2>{{.Name}}</h2>
+<div class="card"><table>
+{{range .Previews}}
+<tr>
+  <td class="n"><a href="{{.URL}}">#{{.Number}}</a></td>
+  <td class="title"><a href="{{call $.Entry .}}">{{.Title}}</a></td>
+  <td class="sha muted"><code>{{short .HeadSHA}}</code></td>
+  <td class="used muted">{{ago .LastUsed}}</td>
+  <td class="s"><span class="badge {{.Phase}}">{{.Phase}}</span></td>
+  <td class="a">{{if $.CanPost}}<button data-a="rebuild" data-s="{{.Slug}}">Rebuild</button>{{if .Running}}<button data-a="stop" data-s="{{.Slug}}">Stop</button>{{end}}{{end}}</td>
+</tr>
+{{end}}
+</table></div>
+{{else}}
+<p class="muted">No open PRs yet.</p>
+{{end}}
+</main>
+<script>
+document.addEventListener('click', function(e){
+  var b = e.target.closest('button[data-a]');
+  if (!b) return;
+  b.disabled = true;
+  fetch('/_/api/previews/' + encodeURIComponent(b.dataset.s) + '/' + b.dataset.a, {method: 'POST', credentials: 'same-origin'}).then(function(){ setTimeout(function(){ location.reload(); }, 800); });
+});
+setInterval(function(){ if (!document.querySelector('button:disabled')) location.reload(); }, 20000);
+</script>
+</body></html>{{end}}
