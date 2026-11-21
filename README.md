@@ -17,7 +17,8 @@ browser ─▶ Caddy (TLS) ───────┘◀──── reverse proxy
 
 - Every `POLL_SECONDS` the service lists the token owner's open PRs in all repos.
 - The first run records each PR's head commit and builds nothing. After that, a new PR or a new
-  commit starts a build. A visit to a preview that is not running builds it or wakes it.
+  commit starts a build. A visit to a preview that is not running builds it or wakes it; with
+  `ACCESS_PASSWORD` set, only a signed-in visit does.
 - One build runs at a time (`BUILD_CONCURRENCY`). Visits go before builds started by a push.
   While a new commit builds, the old containers keep serving.
 - At most `MAX_RUNNING` previews run. The service stops the least recently used one to make room,
@@ -98,6 +99,9 @@ sets it to in progress, success (with the entry URL) or failure, and to inactive
   The session cookie covers the subdomains and never reaches a preview app. Actions also need an
   `Origin` of `https://BASE_DOMAIN`, because preview apps on the subdomains are same-site.
 - Previews are public unless the repo is private and `ACCESS_PASSWORD` is set.
+- Set `ACCESS_PASSWORD`. Every preview host gets a public certificate, so crawlers find it within
+  minutes; without a password each crawler visit can start a build.
+- [examples/erxes.yml](examples/erxes.yml) is a server recipe for a Postgres, API and UI stack.
 
 ## License
 

@@ -87,6 +87,7 @@ type statusView struct {
 	Log      logChunk
 	Failed   bool
 	Progress bool
+	Login    string
 }
 
 func (s *Server) status(w http.ResponseWriter, r *http.Request, p state.Preview, sub bool, code int) {
@@ -104,16 +105,19 @@ func (s *Server) status(w http.ResponseWriter, r *http.Request, p state.Preview,
 		P:        p,
 		Entry:    s.m.EntryURL(p),
 		Sub:      sub,
-		CanPost:  !sub && s.canPostUI(r),
+		CanPost:  !sub && s.canStart(r),
 		Log:      log,
 		Failed:   p.Phase == state.Failed,
 		Progress: p.Phase == state.Queued || p.Phase == state.Building || p.Phase == state.Starting,
+	}
+	if !v.Progress && !s.canStart(r) {
+		v.Login = s.cfg.Origin() + "/_/login?next=" + urlQueryEscape(v.Entry)
 	}
 	w.Header().Set("X-PR-Preview", "status")
 	render(w, code, "status.html", v)
 }
 
-func (s *Server) canPostUI(r *http.Request) bool { return !s.gate.enabled || s.gate.authed(r) }
+func (s *Server) canStart(r *http.Request) bool { return !s.gate.enabled || s.gate.authed(r) }
 
 type dashRepo struct {
 	Name     string
@@ -131,7 +135,7 @@ type dashView struct {
 }
 
 func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
-	v := dashView{CanPost: s.canPostUI(r), Gated: s.gate.enabled && !s.gate.authed(r), Login: "/_/login?next=/", Entry: s.m.EntryURL}
+	v := dashView{CanPost: s.canStart(r), Gated: s.gate.enabled && !s.gate.authed(r), Login: "/_/login?next=/", Entry: s.m.EntryURL}
 	idx := map[string]int{}
 	for _, p := range s.m.Store().List() {
 		v.Total++

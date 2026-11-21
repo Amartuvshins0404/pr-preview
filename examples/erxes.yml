@@ -1,0 +1,91 @@
+x-preview:
+  service: ui
+  port: 8080
+
+x-api: &api
+  build:
+    context: .
+    dockerfile: apps/api/Dockerfile
+  environment:
+    NODE_ENV: production
+    APP_URL: ${PREVIEW_URL:-http://localhost:8080}
+    DATA_URL: postgres://erxes_app:preview_app@postgres:5432/erxes
+    DATA_MIGRATION_URL: postgres://erxes:preview_owner@postgres:5432/erxes
+    DATA_RUNTIME_ROLE: erxes_app
+    DATA_SSL: 'false'
+    CORE_JWT_SECRET_FILE: /run/preview-secrets/core_jwt_secret
+    CORE_ENCRYPTION_KEY_FILE: /run/preview-secrets/core_encryption_key
+    CORE_SIGNING_KEY_FILE: /run/preview-secrets/core_signing_key.pem
+    CORE_SETUP: 'true'
+    FILES_STORAGE: local
+    FILES_LOCAL_DIR: /app/data/files
+    EMAIL_DRIVER: log
+
+services:
+  secrets:
+    image: alpine/openssl
+    restart: 'no'
+    entrypoint:
+      - sh
+      - -c
+      - |
+        set -eu
+        cd /out
+        [ -f core_signing_key.pem ] || openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out core_signing_key.pem
+        [ -f core_jwt_secret ] || openssl rand -base64 48 | tr -d '\n' > core_jwt_secret
+        [ -f core_encryption_key ] || openssl rand -base64 32 | tr -d '\n' > core_encryption_key
+        chmod 644 core_signing_key.pem core_jwt_secret core_encryption_key
+    volumes:
+      - secrets:/out
+
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    shm_size: 512m
+    environment:
+      POSTGRES_USER: erxes
+      POSTGRES_PASSWORD: preview_owner
+      POSTGRES_DB: erxes
+      DATA_APP_PASSWORD: preview_app
+    volumes:
+      - postgres:/var/lib/postgresql
+      - ./deploy/postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U erxes -d erxes']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  migrate:
+    <<: *api
+    command: ['node', 'dist/migrate.js']
+    restart: 'no'
+    volumes:
+      - secrets:/run/preview-secrets:ro
+    depends_on:
+      postgres: { condition: service_healthy }
+      secrets: { condition: service_completed_successfully }
+
+  api:
+    <<: *api
+    restart: unless-stopped
+    volumes:
+      - secrets:/run/preview-secrets:ro
+      - files:/app/data
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  ui:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    environment:
+      CORE_API_URL: http://api:3400
+    depends_on:
+      api: { condition: service_healthy }
+
+volumes:
+  postgres:
+  files:
+  secrets:

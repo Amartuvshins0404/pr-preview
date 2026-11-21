@@ -17,7 +17,7 @@ const (
 func (c *Client) CreateDeployment(ctx context.Context, owner, repo, sha, description string) (int64, error) {
 	body := map[string]any{
 		"ref":                    sha,
-		"environment":            "preview",
+		"environment":            "pr-preview",
 		"transient_environment":  true,
 		"production_environment": false,
 		"required_contexts":      []string{},

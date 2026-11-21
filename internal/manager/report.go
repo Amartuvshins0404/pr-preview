@@ -7,10 +7,14 @@ import (
 	"time"
 
 	"github.com/Amartuvshins0404/pr-preview/internal/github"
+	"github.com/Amartuvshins0404/pr-preview/internal/slug"
 	"github.com/Amartuvshins0404/pr-preview/internal/state"
 )
 
 func (m *Manager) EntryURL(p state.Preview) string {
+	if p.Slug == slug.Make(p.Repo, p.Number) {
+		return fmt.Sprintf("%s/%s/%d", m.cfg.Origin(), p.Repo, p.Number)
+	}
 	return fmt.Sprintf("%s/%s/%s/%d", m.cfg.Origin(), p.Owner, p.Repo, p.Number)
 }
 

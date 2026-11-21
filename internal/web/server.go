@@ -40,6 +40,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.service(w, r)
 	case strings.HasSuffix(host, "."+s.cfg.BaseDomain):
 		s.subdomain(w, r, strings.TrimSuffix(host, "."+s.cfg.BaseDomain))
+	case r.URL.Path == "/_/tls-ask":
+		s.tlsAsk(w, r)
+	case r.URL.Path == "/_/health":
+		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 	default:
 		s.notFound(w, r)
 	}
@@ -52,6 +56,9 @@ func (s *Server) service(w http.ResponseWriter, r *http.Request) {
 		s.dashboard(w, r)
 	case path == "/_/health":
 		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+	case path == "/robots.txt":
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		_, _ = w.Write([]byte("User-agent: *\nDisallow: /\n"))
 	case path == "/_/login":
 		s.login(w, r)
 	case path == "/_/tls-ask":
@@ -103,8 +110,10 @@ func (s *Server) entry(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, target, http.StatusFound)
 		return
 	}
-	s.m.Wake(p.ID)
-	p, _ = s.m.Store().Get(p.ID)
+	if s.canStart(r) {
+		s.m.Wake(p.ID)
+		p, _ = s.m.Store().Get(p.ID)
+	}
 	s.status(w, r, p, false, http.StatusServiceUnavailable)
 }
 
@@ -167,8 +176,10 @@ func (s *Server) subdomain(w http.ResponseWriter, r *http.Request, sl string) {
 		s.serveProxy(w, r, p)
 		return
 	}
-	s.m.Wake(p.ID)
-	p, _ = s.m.Store().Get(p.ID)
+	if s.canStart(r) {
+		s.m.Wake(p.ID)
+		p, _ = s.m.Store().Get(p.ID)
+	}
 	s.status(w, r, p, true, http.StatusServiceUnavailable)
 }
 

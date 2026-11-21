@@ -97,12 +97,12 @@ func (m *Manager) reconcile(ctx context.Context) {
 			switch {
 			case has && strings.Contains(st, "running"):
 				p.Phase, p.Live = state.Ready, true
+			case p.Phase == state.Failed:
+				p.Live = false
 			case has:
 				p.Phase, p.Live = state.Sleeping, false
-			case p.Phase != state.Failed:
-				p.Phase, p.Live = state.Absent, false
 			default:
-				p.Live = false
+				p.Phase, p.Live = state.Absent, false
 			}
 		})
 		if inFlight {

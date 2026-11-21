@@ -17,7 +17,7 @@ import (
 
 const (
 	cookieName  = "pr_preview_session"
-	sessionTTL  = 14 * 24 * time.Hour
+	sessionTTL  = 90 * 24 * time.Hour
 	maxFails    = 5
 	failWindow  = 15 * time.Minute
 	failPenalty = time.Second

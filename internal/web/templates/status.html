@@ -16,6 +16,7 @@
     <h1>{{.P.Title}}</h1>
   </div>
   <div>
+    {{if .Login}}<a class="btn" href="{{.Login}}">Sign in to start</a>{{end}}
     {{if and .Failed .CanPost}}<button class="primary" id="rebuild">Rebuild</button>{{end}}
     {{if and .Failed .Sub}}<a class="btn" href="{{.Entry}}">Open build page</a>{{end}}
   </div>
@@ -23,7 +24,7 @@
 <div class="meta">
   <span id="phase" class="badge {{.P.Phase}}">{{if .Progress}}<span class="spin"></span>{{end}}{{.P.Phase}}</span>
   <span class="muted">commit <code>{{short .P.HeadSHA}}</code></span>
-  <span class="muted" id="hint">{{if .Progress}}This page reloads when the preview is up.{{else if eq .P.Phase "sleeping"}}Waking up…{{else if .Failed}}The build failed for this commit.{{end}}</span>
+  <span class="muted" id="hint">{{if .Progress}}This page reloads when the preview is up.{{else if .Login}}Not running. Sign in to start it.{{else if eq .P.Phase "sleeping"}}Waking up…{{else if .Failed}}The build failed for this commit.{{end}}</span>
 </div>
 {{if .P.Error}}<p class="err">{{.P.Error}}</p>{{end}}
 <pre id="log">{{.Log.Text}}</pre>
