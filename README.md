@@ -117,7 +117,7 @@ the sign-in of a seeded account.
 - With `ACCESS_PASSWORD` set, private-repo previews, their logs and every action need a session.
   The session cookie covers the subdomains and never reaches a preview app. Actions also need an
   `Origin` of `https://BASE_DOMAIN`, because preview apps on the subdomains are same-site.
-- Previews are public unless the repo is private and `ACCESS_PASSWORD` is set.
+- Previews are public unless the repo is private and `ACCESS_PASSWORD` is set, or the base-branch recipe sets `x-preview.public: true`.
 - Set `ACCESS_PASSWORD`. Every preview host gets a public certificate, so crawlers find it within
   minutes; without a password each crawler visit can start a build.
 - [examples/erxes.yml](examples/erxes.yml) is a server recipe for a Postgres, API and UI stack.

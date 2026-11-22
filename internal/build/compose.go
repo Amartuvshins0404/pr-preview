@@ -70,6 +70,7 @@ type spec struct {
 	Entry    string
 	Port     int
 	Note     string
+	Public   bool
 	Services []string
 	Networks []string
 }
@@ -90,7 +91,7 @@ func (b *Builder) inspect(ctx context.Context, p Project) (spec, error) {
 	if err := checkConfig(b.Dir(p.Slug), cfg); err != nil {
 		return spec{}, err
 	}
-	s := spec{Port: cfg.Preview.Port, Entry: cfg.Preview.Service, Note: strings.TrimSpace(cfg.Preview.Note)}
+	s := spec{Port: cfg.Preview.Port, Entry: cfg.Preview.Service, Note: strings.TrimSpace(cfg.Preview.Note), Public: cfg.Preview.Public}
 	for name := range cfg.Services {
 		s.Services = append(s.Services, name)
 	}

@@ -74,7 +74,7 @@ func (m *Manager) build(ctx context.Context, id string) {
 	res, err := m.b.Build(bctx, project(p), log)
 	if err == nil {
 		p = m.update(id, func(p *state.Preview) {
-			p.Phase, p.Recipe, p.Service, p.Port, p.Note = state.Starting, res.Recipe, res.Service, res.Port, res.Note
+			p.Phase, p.Recipe, p.Service, p.Port, p.Note, p.Public = state.Starting, res.Recipe, res.Service, res.Port, res.Note, res.Public
 		})
 		pctx, pcancel := context.WithTimeout(bctx, probeTimeout)
 		err = m.b.Probe(pctx, project(p), res.Service, res.Port, log)

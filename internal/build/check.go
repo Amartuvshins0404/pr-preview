@@ -18,6 +18,7 @@ type composeConfig struct {
 		Service string `json:"service"`
 		Port    int    `json:"port"`
 		Note    string `json:"note"`
+		Public  bool   `json:"public"`
 	} `json:"x-preview"`
 }
 

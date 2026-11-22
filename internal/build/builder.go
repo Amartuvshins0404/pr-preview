@@ -31,6 +31,7 @@ type Result struct {
 	Service string
 	Port    int
 	Note    string
+	Public  bool
 }
 
 func (b *Builder) Build(ctx context.Context, p Project, log io.Writer) (Result, error) {
@@ -65,7 +66,7 @@ func (b *Builder) Build(ctx context.Context, p Project, log io.Writer) (Result, 
 	if err := b.writeOverride(p.Slug, s); err != nil {
 		return Result{SHA: sha}, err
 	}
-	res := Result{SHA: sha, Kind: r.Kind, Recipe: r.File, Service: s.Entry, Port: s.Port, Note: s.Note}
+	res := Result{SHA: sha, Kind: r.Kind, Recipe: r.File, Service: s.Entry, Port: s.Port, Note: s.Note, Public: s.Public}
 	if err := b.Compose(ctx, p, log, "up", "-d", "--build", "--remove-orphans"); err != nil {
 		return res, err
 	}

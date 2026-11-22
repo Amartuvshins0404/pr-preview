@@ -92,10 +92,14 @@ type statusView struct {
 
 func (s *Server) status(w http.ResponseWriter, r *http.Request, p state.Preview, sub bool, code int) {
 	log := readLog(s.m.Builder().LogPath(p.Slug), -1)
+	showLog := s.visible(r, p)
+	if !showLog {
+		log = ""
+	}
 	if !wantsHTML(r) {
 		w.Header().Set("Retry-After", "5")
 		w.Header().Set("X-PR-Preview", "status")
-		if sub {
+		if sub && showLog {
 			log = readLog(s.m.Builder().LogPath(p.Slug), logOffset(r.Header.Get("X-PR-Preview-Offset")))
 		}
 		writeJSON(w, code, s.previewJSON(p, &log))

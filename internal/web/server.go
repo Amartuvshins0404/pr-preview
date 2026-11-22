@@ -91,13 +91,17 @@ func (s *Server) visible(r *http.Request, p state.Preview) bool {
 	return !p.Private || s.gate.authed(r)
 }
 
+func (s *Server) open(r *http.Request, p state.Preview) bool { return p.Public || s.visible(r, p) }
+
+func (s *Server) canWake(r *http.Request, p state.Preview) bool { return p.Public || s.canStart(r) }
+
 func (s *Server) entry(w http.ResponseWriter, r *http.Request) {
 	p, rest, ok := s.findEntry(r.URL.Path)
 	if !ok {
 		s.notFound(w, r)
 		return
 	}
-	if !s.visible(r, p) {
+	if !s.open(r, p) {
 		s.needLogin(w, r)
 		return
 	}
@@ -110,7 +114,7 @@ func (s *Server) entry(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, target, http.StatusFound)
 		return
 	}
-	if s.canStart(r) {
+	if s.canWake(r, p) {
 		s.m.Wake(p.ID)
 		p, _ = s.m.Store().Get(p.ID)
 	}
@@ -167,7 +171,7 @@ func (s *Server) subdomain(w http.ResponseWriter, r *http.Request, sl string) {
 		s.notFound(w, r)
 		return
 	}
-	if !s.visible(r, p) {
+	if !s.open(r, p) {
 		s.needLogin(w, r)
 		return
 	}
@@ -176,7 +180,7 @@ func (s *Server) subdomain(w http.ResponseWriter, r *http.Request, sl string) {
 		s.serveProxy(w, r, p)
 		return
 	}
-	if s.canStart(r) {
+	if s.canWake(r, p) {
 		s.m.Wake(p.ID)
 		p, _ = s.m.Store().Get(p.ID)
 	}

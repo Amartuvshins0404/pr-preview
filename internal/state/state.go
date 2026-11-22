@@ -47,6 +47,7 @@ type Preview struct {
 	DeploymentID int64     `json:"deploymentId,omitempty"`
 	BaseRef      string    `json:"baseRef,omitempty"`
 	Note         string    `json:"note,omitempty"`
+	Public       bool      `json:"public,omitempty"`
 	CommentID    int64     `json:"commentId,omitempty"`
 }
 
